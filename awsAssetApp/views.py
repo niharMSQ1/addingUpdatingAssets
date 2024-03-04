@@ -35,7 +35,7 @@ def getAssets(request):
                 "status":"Success",
                 "message":"new organisation data saved on db"
             })
-        else:
+        if type == "update":
             response = addOrUpdateAsset(org_id,existingObject)
 
             return JsonResponse({

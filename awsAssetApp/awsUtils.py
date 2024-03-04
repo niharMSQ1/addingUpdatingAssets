@@ -29,17 +29,32 @@ def addOrUpdateAsset(org_id,orgObject):
             
             ec2_instance.save()
 
-    allElasticIps = get_elastic_ips_with_instances(org_id)
-    for ip, instance_ids in allElasticIps.items():
-        for instance_id in instance_ids:
-            ec2_instance, _ = Ec2.objects.get_or_create(ec2_id=instance_id)
-            elastic_ip, _ = ElasticIp.objects.get_or_create(ip=ip, defaults={'ec2_id': ec2_instance, 
-                                                                             'organisation_id': orgObject,
-                                                                             })
 
-            elastic_ip.ec2_id = ec2_instance
-            elastic_ip.organisation_id = orgObject
-            elastic_ip.save()
+    allElasticIps = get_elastic_ips_with_instances(org_id)
+
+    if not allElasticIps:
+        if ElasticIp.objects.exists():
+            ElasticIp.objects.update(ec2_id=None, current_status=Elastic_ip_Existence.DELETED_FROM_AWS.value)
+    else:
+        for ip, instance_id in allElasticIps.items():
+            if instance_id is None:
+                elastic_ip, _ = ElasticIp.objects.get_or_create(ip=ip, defaults={'ec2_id': None, 
+                                                                                    'organisation_id': orgObject
+                                                                                    })
+                elastic_ip.ec2_id = None
+                elastic_ip.organisation_id = orgObject
+                elastic_ip.current_status = Elastic_ip_Existence.DISASSOCIATION.value
+                elastic_ip.save()
+            else:
+                ec2_instance, _ = Ec2.objects.get_or_create(ec2_id=instance_id)
+                elastic_ip, _ = ElasticIp.objects.get_or_create(ip=ip, defaults={'ec2_id': ec2_instance if ec2_instance else None, 
+                                                                                'organisation_id': orgObject
+                                                                                })
+                elastic_ip.ec2_id = ec2_instance
+                elastic_ip.organisation_id = orgObject
+                elastic_ip.current_status = Elastic_ip_Existence.ASSOCIATION.value
+                elastic_ip.save()
+
 
 def get_regions_and_org_ids():
 
@@ -94,8 +109,8 @@ def get_elastic_ips_with_instances(org_id):
     # Connect to the AWS EC2 service
     ec2_client = boto3.client('ec2',
                               region_name='ap-south-1',
-                aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-                aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY)
+                              aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+                              aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY)
 
     # Describe all Elastic IPs
     response = ec2_client.describe_addresses()
@@ -103,15 +118,11 @@ def get_elastic_ips_with_instances(org_id):
     # Extract Elastic IPs and their associations
     for address in response['Addresses']:
         elastic_ip = address['PublicIp']
-        if 'InstanceId' in response['Addresses'][0]:
-            instance_id = ((response['Addresses'])[0])['InstanceId']
-        else:
-            instance_id = None
-        
+        instance_id = address.get('InstanceId')  # Using .get() to handle None gracefully
         if instance_id:
-            if elastic_ip in elastic_ips_with_instances:
-                elastic_ips_with_instances[elastic_ip].append(instance_id)
-            else:
-                elastic_ips_with_instances[elastic_ip] = [instance_id]
+            elastic_ips_with_instances[elastic_ip] = instance_id
+        else:
+            elastic_ips_with_instances[elastic_ip] = None
 
     return elastic_ips_with_instances
+
