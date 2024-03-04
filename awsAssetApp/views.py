@@ -4,7 +4,7 @@ from django.http import JsonResponse
 
 import json
 
-from .awsUtils import saveNewAsset, updateAsset
+from .awsUtils import addOrUpdateAsset
 from .models import *
 
 # Create your views here.
@@ -29,14 +29,14 @@ def getAssets(request):
         type = data.get("type")
 
         if type == "new":
-            response = saveNewAsset(org_id,newObject[0])
+            response = addOrUpdateAsset(org_id,newObject[0])
 
             return JsonResponse({
                 "status":"Success",
                 "message":"new organisation data saved on db"
             })
         else:
-            response = updateAsset(org_id,existingObject)
+            response = addOrUpdateAsset(org_id,existingObject)
 
             return JsonResponse({
                 "status":"Success",
@@ -44,7 +44,7 @@ def getAssets(request):
             })
 
 
-    except:
+    except Exception as ex:
         return JsonResponse({
             "status":"Failed",
             "message":f"{request.method} not allowed"

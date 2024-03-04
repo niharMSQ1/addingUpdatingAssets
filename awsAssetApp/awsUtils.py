@@ -1,37 +1,45 @@
 import boto3
-import json
+import copy
 
 from django.conf import settings
 
 from .models import *
 
-def saveNewAsset(org_id,orgObject):
+def addOrUpdateAsset(org_id,orgObject):
     active_regions = get_regions_and_org_ids()
 
     allInstances = get_ec2_instances_in_regions(active_regions)
 
     for region, instances in allInstances.items():
         for instance in instances:
-            ec2_instance = Ec2(
-                ec2_id=instance['id'],
-                instance_type=instance['type'],
-                state=instance['status'],
-                region=region,
-                organisation_id = orgObject
-            )
+            ec2_instance, created = Ec2.objects.get_or_create(ec2_id=instance['id'])
+            
+            # Fields to update or create
+            updated_fields = {
+                'instance_type': instance['type'],
+                'state': instance['status'],
+                'region': region,
+                'isActive': True if instance['status'] == 'running' else False,
+                'organisation_id': orgObject
+            }
+            
+            # Updating or creating instance
+            for field, value in updated_fields.items():
+                setattr(ec2_instance, field, value)
+            
             ec2_instance.save()
 
     allElasticIps = get_elastic_ips_with_instances(org_id)
     for ip, instance_ids in allElasticIps.items():
         for instance_id in instance_ids:
-            elastic_ip = ElasticIp(ip=ip, ec2_id=Ec2.objects.get(ec2_id=instance_id),organisation_id = orgObject)
+            ec2_instance, _ = Ec2.objects.get_or_create(ec2_id=instance_id)
+            elastic_ip, _ = ElasticIp.objects.get_or_create(ip=ip, defaults={'ec2_id': ec2_instance, 
+                                                                             'organisation_id': orgObject,
+                                                                             })
+
+            elastic_ip.ec2_id = ec2_instance
+            elastic_ip.organisation_id = orgObject
             elastic_ip.save()
-
-
-    
-def updateAsset(org_id,existingObject):
-    active_regions = get_regions_and_org_ids()
-
 
 def get_regions_and_org_ids():
 
@@ -95,7 +103,10 @@ def get_elastic_ips_with_instances(org_id):
     # Extract Elastic IPs and their associations
     for address in response['Addresses']:
         elastic_ip = address['PublicIp']
-        instance_id = ((response['Addresses'])[0])['InstanceId']
+        if 'InstanceId' in response['Addresses'][0]:
+            instance_id = ((response['Addresses'])[0])['InstanceId']
+        else:
+            instance_id = None
         
         if instance_id:
             if elastic_ip in elastic_ips_with_instances:
