@@ -13,14 +13,14 @@ def addOrUpdateAsset(org_id,orgObject):
     for region, instances in allInstances.items():
         for instance in instances:
             ec2_instance, created = Ec2.objects.get_or_create(ec2_id=instance['id'])
-            
-            # Fields to update or create
+
             updated_fields = {
                 'instance_type': instance['type'],
                 'state': instance['status'],
                 'region': region,
                 'isActive': True if instance['status'] == 'running' else False,
-                'organisation_id': orgObject
+                'organisation_id': orgObject,
+                'awsStatus': AWSStatus.PRESENT.value
             }
             
             # Updating or creating instance
@@ -28,8 +28,9 @@ def addOrUpdateAsset(org_id,orgObject):
                 setattr(ec2_instance, field, value)
             
             ec2_instance.save()
-
-            allEc2Objs = list(Ec2.objects.all())
+        
+        
+        allEc2Objs = list(Ec2.objects.all())
         db_instances = []
         for i in allEc2Objs:
             db_instances.append(i.ec2_id)
@@ -46,6 +47,7 @@ def addOrUpdateAsset(org_id,orgObject):
                 ec2Obj.state = None
                 ec2Obj.isActive = False
                 ec2Obj.region = None
+                ec2Obj.awsStatus = AWSStatus.DELETED.value
                 ec2Obj.save()
 
 
