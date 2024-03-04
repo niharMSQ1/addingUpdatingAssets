@@ -29,6 +29,25 @@ def addOrUpdateAsset(org_id,orgObject):
             
             ec2_instance.save()
 
+            allEc2Objs = list(Ec2.objects.all())
+        db_instances = []
+        for i in allEc2Objs:
+            db_instances.append(i.ec2_id)
+        
+        aws_instances = []
+        for j in instances:
+            aws_instances.append(j['id'])
+
+        deleted_instances = list(set(db_instances) - set(aws_instances))
+        if len(deleted_instances) > 0:
+            for i in deleted_instances:
+                ec2Obj = Ec2.objects.get(ec2_id = i)
+                ec2Obj.instance_type = None
+                ec2Obj.state = None
+                ec2Obj.isActive = False
+                ec2Obj.region = None
+                ec2Obj.save()
+
 
     allElasticIps = get_elastic_ips_with_instances(org_id)
 
