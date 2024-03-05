@@ -43,12 +43,15 @@ def addOrUpdateAsset(org_id,orgObject):
         if len(deleted_instances) > 0:
             for i in deleted_instances:
                 ec2Obj = Ec2.objects.get(ec2_id = i)
-                ec2Obj.instance_type = None
-                ec2Obj.state = None
-                ec2Obj.isActive = False
-                ec2Obj.region = None
-                ec2Obj.awsStatus = AWSStatus.DELETED.value
-                ec2Obj.save()
+                if ec2Obj.awsStatus == AWSStatus.DELETED.value:
+                    pass
+                else:
+                    ec2Obj.instance_type = None
+                    ec2Obj.state = None
+                    ec2Obj.isActive = False
+                    ec2Obj.region = None
+                    ec2Obj.awsStatus = AWSStatus.DELETED.value
+                    ec2Obj.save()
 
 
     allElasticIps = get_elastic_ips_with_instances(org_id)
