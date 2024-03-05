@@ -47,6 +47,6 @@ def getAssets(request):
     except Exception as ex:
         return JsonResponse({
             "status":"Failed",
-            "message":f"{request.method} not allowed"
+            "message":ex
         })
 

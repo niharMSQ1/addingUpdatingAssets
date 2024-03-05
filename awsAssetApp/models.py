@@ -16,7 +16,7 @@ class Ec2(models.Model):
     state = models.CharField(max_length=100, null = True)
     isActive = models.BooleanField(default = False)
     region = models.CharField(max_length=100, null = True)
-    awsStatus = models.CharField(max_length = 255, default = None)
+    awsStatus = models.CharField(max_length = 255, default = 'Standby')
     organisation_id = models.ForeignKey(Organisation, on_delete = models.CASCADE, null = True)
 
 class Elastic_ip_association_choices(Enum):
